@@ -388,6 +388,16 @@ void Blob<Dtype>::scale_diff(Dtype scale_factor) {
 
 template <typename Dtype>
 bool Blob<Dtype>::ShapeEquals(const BlobProto& other) {
+  if (other.has_length()) {
+      // Using deprecated 5D Blob dimensions --
+      // shape is (num, channels, length, height, width).
+      return shape_.size() <= 5 &&
+              this->shape(0) == other.num() &&
+              this->shape(1) == other.channels() &&
+              this->shape(2) == other.length() &&
+              this->shape(3) == other.height() &&
+              this->shape(4) == other.width();
+  }
   if (other.has_num() || other.has_channels() ||
       other.has_height() || other.has_width()) {
     // Using deprecated 4D Blob dimensions --
@@ -444,53 +454,62 @@ void Blob<Dtype>::CopyFrom(const Blob& source, bool copy_diff, bool reshape) {
 
 template <typename Dtype>
 void Blob<Dtype>::FromProto(const BlobProto& proto, bool reshape) {
-  if (reshape) {
-    vector<int> shape;
-    if (proto.has_num() || proto.has_channels() ||
-        proto.has_height() || proto.has_width()) {
-      // Using deprecated 4D Blob dimensions --
-      // shape is (num, channels, height, width).
-      shape.resize(4);
-      shape[0] = proto.num();
-      shape[1] = proto.channels();
-      shape[2] = proto.height();
-      shape[3] = proto.width();
+    if (reshape) {
+        vector<int> shape;
+        if (proto.has_length()) {
+            // Using deprecated 5D Blob dimensions --
+            // shape is (num, channels, length, height, width).
+            shape.resize(5);
+            shape[0] = proto.num();
+            shape[1] = proto.channels();
+            shape[2] = proto.length();
+            shape[3] = proto.height();
+            shape[4] = proto.width();
+        } else if (proto.has_num() || proto.has_channels() ||
+                   proto.has_height() || proto.has_width()) {
+            // Using deprecated 4D Blob dimensions --
+            // shape is (num, channels, height, width).
+            shape.resize(4);
+            shape[0] = proto.num();
+            shape[1] = proto.channels();
+            shape[2] = proto.height();
+            shape[3] = proto.width();
+        } else {
+            shape.resize(proto.shape().dim_size());
+            for (int i = 0; i < proto.shape().dim_size(); ++i) {
+                shape[i] = proto.shape().dim(i);
+            }
+        }
+        Reshape(shape);
     } else {
-      shape.resize(proto.shape().dim_size());
-      for (int i = 0; i < proto.shape().dim_size(); ++i) {
-        shape[i] = proto.shape().dim(i);
-      }
+        CHECK(ShapeEquals(proto)) << "shape mismatch (reshape not set)";
     }
-    Reshape(shape);
-  } else {
-    CHECK(ShapeEquals(proto)) << "shape mismatch (reshape not set)";
-  }
-  // copy data
-  Dtype* data_vec = mutable_cpu_data();
-  if (proto.double_data_size() > 0) {
-    CHECK_EQ(count_, proto.double_data_size());
-    for (int i = 0; i < count_; ++i) {
-      data_vec[i] = proto.double_data(i);
+    // copy data
+    Dtype* data_vec = mutable_cpu_data();
+    if (proto.double_data_size() > 0) {
+        CHECK_EQ(count_, proto.double_data_size());
+        for (int i = 0; i < count_; ++i) {
+            data_vec[i] = proto.double_data(i);
+        }
+    } else {
+        CHECK_EQ(count_, proto.data_size());
+        for (int i = 0; i < count_; ++i) {
+            data_vec[i] = proto.data(i);
+        }
     }
-  } else {
-    CHECK_EQ(count_, proto.data_size());
-    for (int i = 0; i < count_; ++i) {
-      data_vec[i] = proto.data(i);
+    if (proto.double_diff_size() > 0) {
+        CHECK_EQ(count_, proto.double_diff_size());
+        Dtype* diff_vec = mutable_cpu_diff();
+        for (int i = 0; i < count_; ++i) {
+            diff_vec[i] = proto.double_diff(i);
+        }
+    } else if (proto.diff_size() > 0) {
+        CHECK_EQ(count_, proto.diff_size());
+        Dtype* diff_vec = mutable_cpu_diff();
+        for (int i = 0; i < count_; ++i) {
+            diff_vec[i] = proto.diff(i);
+        }
     }
-  }
-  if (proto.double_diff_size() > 0) {
-    CHECK_EQ(count_, proto.double_diff_size());
-    Dtype* diff_vec = mutable_cpu_diff();
-    for (int i = 0; i < count_; ++i) {
-      diff_vec[i] = proto.double_diff(i);
-    }
-  } else if (proto.diff_size() > 0) {
-    CHECK_EQ(count_, proto.diff_size());
-    Dtype* diff_vec = mutable_cpu_diff();
-    for (int i = 0; i < count_; ++i) {
-      diff_vec[i] = proto.diff(i);
-    }
-  }
 }
 
 template <>

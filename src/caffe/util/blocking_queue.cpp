@@ -2,6 +2,7 @@
 #include <string>
 
 #include "caffe/data_reader.hpp"
+#include "caffe/volume_data_reader.hpp"
 #include "caffe/layers/base_data_layer.hpp"
 #include "caffe/parallel.hpp"
 #include "caffe/util/blocking_queue.hpp"
@@ -86,11 +87,15 @@ size_t BlockingQueue<T>::size() const {
   return queue_.size();
 }
 
+// explitly instantiate all classes in cpp file
+// http://stackoverflow.com/questions/495021/why-can-templates-only-be-implemented-in-the-header-file
 template class BlockingQueue<Batch<float>*>;
 template class BlockingQueue<Batch<double>*>;
 template class BlockingQueue<Datum*>;
 template class BlockingQueue<shared_ptr<DataReader::QueuePair> >;
 template class BlockingQueue<P2PSync<float>*>;
 template class BlockingQueue<P2PSync<double>*>;
+template class BlockingQueue<VolumeDatum*>;
+template class BlockingQueue<shared_ptr<VolumeDataReader::QueuePair> >;
 
 }  // namespace caffe

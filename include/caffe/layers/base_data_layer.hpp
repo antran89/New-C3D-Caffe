@@ -40,6 +40,11 @@ class BaseDataLayer : public Layer<Dtype> {
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {}
 
  protected:
+  // It is a better idea to move TransformationParameter & DataTransformer
+  // into data specific data layer. Or develop better DataTransform interface by
+  // by using virtual function and generalized Datum interface. I'll leave it
+  // for the future work.
+  // We need more generalized Datum and DataTransformer.
   TransformationParameter transform_param_;
   shared_ptr<DataTransformer<Dtype> > data_transformer_;
   bool output_labels_;

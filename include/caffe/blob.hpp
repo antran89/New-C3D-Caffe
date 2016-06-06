@@ -150,6 +150,7 @@ class Blob {
     return shape(index);
   }
 
+  // offset for 4D blobs
   inline int offset(const int n, const int c = 0, const int h = 0,
       const int w = 0) const {
     CHECK_GE(n, 0);

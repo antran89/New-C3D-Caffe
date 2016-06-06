@@ -79,12 +79,12 @@ class BaseConvolutionLayer : public Layer<Dtype> {
   const vector<int>* bottom_shape_;
 
   int num_spatial_axes_;
-  int bottom_dim_;
-  int top_dim_;
+  int bottom_dim_;          // dimensions of bottom blob C*H*W of a single sample
+  int top_dim_;             // dimensions of top blob
 
-  int channel_axis_;
-  int num_;
-  int channels_;
+  int channel_axis_;        // axis index of channels
+  int num_;                 // number of images in a batch
+  int channels_;            // number of channels
   int group_;
   int out_spatial_dim_;
   int weight_offset_;

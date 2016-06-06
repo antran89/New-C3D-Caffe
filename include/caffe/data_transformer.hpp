@@ -145,7 +145,7 @@ class DataTransformer {
 
   shared_ptr<Caffe::RNG> rng_;
   Phase phase_;
-  Blob<Dtype> data_mean_;
+  Blob<Dtype> data_mean_;   // have two data types to store mean values
   vector<Dtype> mean_values_;
 };
 

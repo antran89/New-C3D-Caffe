@@ -7,19 +7,33 @@ message BlobShape {
   repeated int64 dim = 1 [packed = true];
 }
 
+// new BlobProto, you modify tag number of some field,
+// might cause problems in the future.
 message BlobProto {
-  optional BlobShape shape = 7;
-  repeated float data = 5 [packed = true];
-  repeated float diff = 6 [packed = true];
+  optional BlobShape shape = 10;
+  repeated float data = 6 [packed = true];
+  repeated float diff = 7 [packed = true];
   repeated double double_data = 8 [packed = true];
   repeated double double_diff = 9 [packed = true];
 
   // 4D dimensions -- deprecated.  Use "shape" instead.
   optional int32 num = 1 [default = 0];
   optional int32 channels = 2 [default = 0];
-  optional int32 height = 3 [default = 0];
-  optional int32 width = 4 [default = 0];
+  optional int32 length = 3 [default = 0];
+  optional int32 height = 4 [default = 0];
+  optional int32 width = 5 [default = 0];
 }
+
+//// old BlobProto
+//message BlobProto {
+//  optional int32 num = 1 [default = 0];
+//  optional int32 channels = 2 [default = 0];
+//  optional int32 length = 3 [default = 0];
+//  optional int32 height = 4 [default = 0];
+//  optional int32 width = 5 [default = 0];
+//  repeated float data = 6 [packed = true];
+//  repeated float diff = 7 [packed = true];
+//}
 
 // The BlobProtoVector is simply a way to pass multiple blobproto instances
 // around.
@@ -27,6 +41,7 @@ message BlobProtoVector {
   repeated BlobProto blobs = 1;
 }
 
+// Datum can be generalized into any data shape, like modern BlobProto
 message Datum {
   optional int32 channels = 1;
   optional int32 height = 2;
@@ -39,6 +54,19 @@ message Datum {
   // If true data contains an encoded image that need to be decoded
   optional bool encoded = 7 [default = false];
 }
+
+message VolumeDatum {
+  optional int32 channels = 1;
+  optional int32 length = 2 [default = 1];
+  optional int32 height = 3;
+  optional int32 width = 4;
+  // the actual image data, in bytes
+  optional bytes data = 5;
+  optional int32 label = 6;
+  // Optionally, the datum could also hold float data.
+  repeated float float_data = 7;
+}
+
 
 message FillerParameter {
   // The filler type.
@@ -306,7 +334,7 @@ message ParamSpec {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available layer-specific ID: 145 (last added: crop_param)
+// LayerParameter next available layer-specific ID: 149 (last added: volume_data_param)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -360,6 +388,7 @@ message LayerParameter {
   optional ConcatParameter concat_param = 104;
   optional ContrastiveLossParameter contrastive_loss_param = 105;
   optional ConvolutionParameter convolution_param = 106;
+  optional Convolution3DParameter convolution3D_param = 146;
   optional CropParameter crop_param = 144;
   optional DataParameter data_param = 107;
   optional DropoutParameter dropout_param = 108;
@@ -381,6 +410,7 @@ message LayerParameter {
   optional MemoryDataParameter memory_data_param = 119;
   optional MVNParameter mvn_param = 120;
   optional PoolingParameter pooling_param = 121;
+  optional Pooling3DParameter pooling3D_param = 145;
   optional PowerParameter power_param = 122;
   optional PReLUParameter prelu_param = 131;
   optional PythonParameter python_param = 130;
@@ -395,6 +425,8 @@ message LayerParameter {
   optional TanHParameter tanh_param = 127;
   optional ThresholdParameter threshold_param = 128;
   optional TileParameter tile_param = 138;
+  optional VideoDataParameter video_data_param = 147;
+  optional VolumeDataParameter volume_data_param = 148;
   optional WindowDataParameter window_data_param = 129;
 }
 
@@ -599,6 +631,22 @@ message ConvolutionParameter {
   optional bool force_nd_im2col = 17 [default = false];
 }
 
+// Message that stores parameters used by Convolution3DLayer
+message Convolution3DParameter {
+  optional uint32 num_output = 1; // The number of outputs for the layer
+  optional bool bias_term = 2 [default = true]; // whether to have bias terms
+  optional uint32 pad = 3 [default = 0]; // The padding size
+  optional uint32 kernel_size = 4; // The kernel size
+  optional uint32 group = 5 [default = 1]; // The group size for group conv
+  optional uint32 kernel_depth = 6; // The kernel size
+  optional uint32 stride = 7 [default = 1]; // The stride
+  optional uint32 temporal_stride = 8 [default = 1]; // The stride for temporal
+  optional FillerParameter weight_filler = 9; // The filler for the weight
+  optional FillerParameter bias_filler = 10; // The filler for the bias
+  optional uint32 filter_group = 11 [default = 1]; // divide filters into groups to reduce memory consumption
+  optional uint32 temporal_pad = 12 [default = 0]; // padding size for temporal
+}
+
 message CropParameter {
   // To crop, elements of the first bottom are selected to fit the dimensions
   // of the second, reference bottom. The crop is configured by
@@ -649,6 +697,48 @@ message DataParameter {
   // Prefetch queue (Number of batches to prefetch to host memory, increase if
   // data access bandwidth varies).
   optional uint32 prefetch = 10 [default = 4];
+}
+
+// Message that stores parameters used by VolumeDataLayer
+message VolumeDataParameter {
+    enum DB {
+        LEVELDB = 0;
+        LMDB = 1;
+    }
+    // Specify the data source.
+    optional string source = 1;
+    // For data pre-processing, we can do simple scaling and subtracting the
+    // data mean, if provided. Note that the mean subtraction is always carried
+    // out before scaling.
+    optional float scale = 2 [default = 1];
+    optional string mean_file = 3;
+    // Specify the batch size.
+    optional uint32 batch_size = 4;
+    // Specify if we would like to randomly crop an image.
+    optional uint32 crop_size = 5 [default = 0];
+    // Specify if we want to randomly mirror data.
+    optional bool mirror = 6 [default = false];
+    // The rand_skip variable is for the data layer to skip a few data points
+    // to avoid all asynchronous sgd clients to start at the same point. The skip
+    // point would be set as rand_skip * rand(0,1). Note that rand_skip should not
+    // be larger than the number of keys in the leveldb.
+    optional uint32 rand_skip = 7 [default = 0];
+    // Whether or not ImageLayer should shuffle the list of files at every epoch.
+    optional bool shuffle = 8 [default = false];
+    // It will also resize images if new_height or new_width are not zero.
+    optional uint32 new_height = 9 [default = 0];
+    optional uint32 new_width = 10 [default = 0];
+    optional uint32 new_length = 11 [default = 0];
+    optional int32 show_data = 12 [default = 0];
+    optional bool use_image = 13 [default = false];
+    optional int32 sampling_rate = 14 [default = 1];
+    optional bool use_label = 15 [default = true];
+    optional bool use_temporal_jitter = 16 [default = false];
+    optional float mean_value = 17 [default = 0];
+    optional DB backend = 18 [default = LEVELDB];
+    // Prefetch queue (Number of batches to prefetch to host memory, increase if
+    // data access bandwidth varies).
+    optional uint32 prefetch = 19 [default = 4];
 }
 
 message DropoutParameter {
@@ -791,6 +881,40 @@ message ImageDataParameter {
   optional string root_folder = 12 [default = ""];
 }
 
+// Message that stores parameters used by VideoDataLayer
+message VideoDataParameter {
+  // Specify the data source.
+  optional string source = 1;
+  // For data pre-processing, we can do simple scaling and subtracting the
+  // data mean, if provided. Note that the mean subtraction is always carried
+  // out before scaling.
+  optional float scale = 2 [default = 1];
+  optional string mean_file = 3;
+  // Specify the batch size.
+  optional uint32 batch_size = 4;
+  // Specify if we would like to randomly crop an image.
+  optional uint32 crop_size = 5 [default = 0];
+  // Specify if we want to randomly mirror data.
+  optional bool mirror = 6 [default = false];
+  // The rand_skip variable is for the data layer to skip a few data points
+  // to avoid all asynchronous sgd clients to start at the same point. The skip
+  // point would be set as rand_skip * rand(0,1). Note that rand_skip should not
+  // be larger than the number of keys in the leveldb.
+  optional uint32 rand_skip = 7 [default = 0];
+  // Whether or not ImageLayer should shuffle the list of files at every epoch.
+  optional bool shuffle = 8 [default = false];
+  // It will also resize images if new_height or new_width are not zero.
+  optional uint32 new_height = 9 [default = 0];
+  optional uint32 new_width = 10 [default = 0];
+  optional uint32 new_length = 11 [default = 0];
+  optional int32 show_data = 12 [default = 0];
+  optional bool use_image = 13 [default = false];   // read data from images or video
+  optional int32 sampling_rate = 14 [default = 1];
+  optional bool use_label = 15 [default = true];
+  optional bool use_temporal_jitter = 16 [default = false];
+  optional float mean_value = 17 [default = 0];
+}
+
 message InfogainLossParameter {
   // Specify the infogain matrix source.
   optional string source = 1;
@@ -866,6 +990,22 @@ message MVNParameter {
 
   // Epsilon for not dividing by zero while normalizing variance
   optional float eps = 3 [default = 1e-9];
+}
+
+// Message that stores parameters used by PoolingLayer
+message Pooling3DParameter {
+  enum PoolMethod {
+    MAX = 0;
+    AVE = 1;
+    STOCHASTIC = 2;
+  }
+  optional PoolMethod pool = 1 [default = MAX]; // The pooling method
+  optional uint32 kernel_size = 2; // The kernel size
+  optional uint32 stride = 3 [default = 1]; // The stride
+  // The padding size -- currently implemented only for average pooling.
+  optional uint32 pad = 4 [default = 0];
+  optional uint32 kernel_depth = 5;
+  optional uint32 temporal_stride = 6 [default = 1]; // The stride
 }
 
 message PoolingParameter {
