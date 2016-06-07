@@ -56,9 +56,9 @@ void VolumeDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
     this->prefetch_[i].data_.Reshape(top_shape);
   }
-  LOG(INFO) << "output data size: " << top[0]->num() << ","
-      << top[0]->channels() << "," << top[0]->height() << ","
-      << top[0]->width();
+  LOG(INFO) << "output data size: " << top_shape[0] << ","
+      << top_shape[1] << "," << top_shape[2] << "," << top_shape[3] << ","
+      << top_shape[4];
   // label
   if (this->output_labels_) {
     vector<int> label_shape(1, batch_size);
@@ -118,7 +118,7 @@ void VolumeDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
 
   // Reshape according to the first datum of each batch
   // on single input batches allows for inputs of varying dimension.
-  const int batch_size = this->layer_param_.data_param().batch_size();
+  const int batch_size = this->layer_param_.volume_data_param().batch_size();
   VolumeDatum& datum = *(reader_.full().peek());
   // Use data_transformer to infer the expected blob shape from datum.
   //vector<int> top_shape = this->data_transformer_->InferBlobShape(datum);

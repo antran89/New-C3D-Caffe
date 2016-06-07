@@ -77,8 +77,19 @@ VolumeDataReader::Body::~Body() {
 }
 
 void VolumeDataReader::Body::InternalThreadEntry() {
-  shared_ptr<db::DB> db(db::GetDB(param_.data_param().backend()));
-  db->Open(param_.data_param().source(), db::READ);
+  VolumeDataParameter_DB backend = param_.volume_data_param().backend();
+  string backend_str;
+  switch (backend)
+  {
+  case VolumeDataParameter_DB_LEVELDB:
+      backend_str = "leveldb";
+      break;
+  case VolumeDataParameter_DB_LMDB:
+      backend_str = "lmdb";
+      break;
+  }
+  shared_ptr<db::DB> db(db::GetDB(backend_str));
+  db->Open(param_.volume_data_param().source(), db::READ);
   shared_ptr<db::Cursor> cursor(db->NewCursor());
   vector<shared_ptr<QueuePair> > qps;
   try {
