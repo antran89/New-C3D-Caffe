@@ -72,7 +72,7 @@ class VolumeDataReader {
   // A source is uniquely identified by its layer name + path, in case
   // the same database is read from two different locations in the net.
   static inline string source_key(const LayerParameter& param) {
-    return param.name() + ":" + param.data_param().source();
+    return param.name() + ":" + param.volume_data_param().source();
   }
 
   const shared_ptr<QueuePair> queue_pair_;
