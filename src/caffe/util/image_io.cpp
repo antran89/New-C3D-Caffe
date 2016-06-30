@@ -187,8 +187,8 @@ bool ReadImageSequenceToVolumeDatum(const char* img_dir, const int start_frm, co
 
 	offset = 0;
 	int end_frm = start_frm + length * sampling_rate;
-	for (int i=start_frm; i<end_frm; i+=sampling_rate){
-        sprintf(fn_im, "%s/%04d.jpg", img_dir, i);
+    for (int i = start_frm; i < end_frm; i += sampling_rate){
+        sprintf(fn_im, "%s/flow_%04d.jpg", img_dir, i);
 		if (height > 0 && width > 0) {
 		    img_origin = cv::imread(fn_im, CV_LOAD_IMAGE_COLOR);
 		    if (!img_origin.data)
