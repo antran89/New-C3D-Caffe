@@ -212,6 +212,36 @@ int VolumeDataLayer<Dtype>::Rand(int n) {
 }
 
 /**
+ * build fixed crop offsets for random selection
+ */
+void fillFixOffset(int datum_height, int datum_width, int crop_height, int crop_width,
+                   bool more_crop, vector<pair<int , int> >& offsets){
+  int height_off = (datum_height - crop_height)/4;
+  int width_off = (datum_width - crop_width)/4;
+
+  offsets.clear();
+  offsets.push_back(pair<int, int>(0, 0)); //upper left
+  offsets.push_back(pair<int, int>(0, 4 * width_off)); //upper right
+  offsets.push_back(pair<int, int>(4 * height_off, 0)); //lower left
+  offsets.push_back(pair<int, int>(4 * height_off, 4 *width_off)); //lower right
+  offsets.push_back(pair<int, int>(2 * height_off, 2 * width_off)); //center
+
+  //will be used when more_fix_crop is set to true
+  if (more_crop) {
+    offsets.push_back(pair<int, int>(0, 2 * width_off)); //top center
+    offsets.push_back(pair<int, int>(4 * height_off, 2 * width_off)); //bottom center
+    offsets.push_back(pair<int, int>(2 * height_off, 0)); //left center
+    offsets.push_back(pair<int, int>(2 * height_off, 4 * width_off)); //right center
+
+    offsets.push_back(pair<int, int>(1 * height_off, 1 * width_off)); //upper left quarter
+    offsets.push_back(pair<int, int>(1 * height_off, 3 * width_off)); //upper right quarter
+    offsets.push_back(pair<int, int>(3 * height_off, 1 * width_off)); //lower left quarter
+    offsets.push_back(pair<int, int>(3 * height_off, 3 * width_off)); //lower right quarter
+  }
+}
+
+
+/**
  * @brief Applies the transformation defined in the data layer's
  * transform_param block to the data.
  *
@@ -270,20 +300,32 @@ void VolumeDataLayer<Dtype>::Transform(const VolumeDatum& datum, Dtype* transfor
     const bool has_uint8 = data.size() > 0;
     const bool has_mean = this->layer_param_.volume_data_param().has_mean_file() ||
             this->layer_param_.volume_data_param().has_mean_value();
+    const bool fix_crop = this->layer_param_.volume_data_param().fix_crop();
+    const bool more_fix_crop = this->layer_param_.volume_data_param().more_fix_crop();
 
     // main transformation: transform
     int height = datum_height;      // height, width of a final patch
     int width = datum_width;
 
     int h_off = 0, w_off = 0;
+    vector<pair<int, int> > offset_pairs;
 
     if (crop_size) {
         height = crop_size;
         width = crop_size;
         // We only do random crop when we do training.
         if (this->phase_ == caffe::TRAIN) {
-            h_off = Rand(datum_height - crop_size + 1);
-            w_off = Rand(datum_width - crop_size + 1);
+            if (fix_crop) {
+                fillFixOffset(datum_height, datum_width, crop_size, crop_size,
+                              more_fix_crop, offset_pairs);
+                int sel = Rand(offset_pairs.size());
+                h_off = offset_pairs[sel].first;
+                w_off = offset_pairs[sel].second;
+            } else {
+                h_off = Rand(datum_height - crop_size + 1);
+                w_off = Rand(datum_width - crop_size + 1);
+            }
+
         } else {
             h_off = (datum_height - crop_size) / 2;
             w_off = (datum_width - crop_size) / 2;

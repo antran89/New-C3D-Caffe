@@ -739,6 +739,8 @@ message VolumeDataParameter {
     // Prefetch queue (Number of batches to prefetch to host memory, increase if
     // data access bandwidth varies).
     optional uint32 prefetch = 19 [default = 4];
+    optional bool fix_crop = 20 [default = false];
+    optional bool more_fix_crop = 21 [default = false];
 }
 
 message DropoutParameter {
